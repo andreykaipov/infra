@@ -29,7 +29,7 @@ inputs = {
 }
 
 terraform {
-  source = "${get_repo_root()}/infra/_modules//"
+  source = "${get_repo_root()}/_modules//"
 }
 
 remote_state {

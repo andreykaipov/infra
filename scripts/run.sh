@@ -45,8 +45,9 @@ main() {
 
         cmd=$1
         case "$cmd" in
-                infra/*) infra "$@" ;;
-                *) log "Unknown command: $cmd" ;;
+                # infra/*) infra "$@" ;;
+                # *) log "Unknown command: $cmd" ;;
+                *) infra "$@" ;;
         esac
 }
 
