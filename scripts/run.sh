@@ -54,8 +54,8 @@ main() {
 infra() {
         dir=$1
         shift
-        export TERRAGRUNT_DEBUG=1
-        export TERRAGRUNT_WORKING_DIR="$PWD/$dir"
+        export TG_INPUTS_DEBUG=1
+        export TG_WORKING_DIR="$PWD/$dir"
         self_secrets="$(get_secret_json github self)" terragrunt "$@"
 }
 
