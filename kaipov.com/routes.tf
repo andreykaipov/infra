@@ -20,7 +20,7 @@ locals {
 
 ### subdomain routes, e.g. blah.kaipov.com/*
 
-resource "cloudflare_worker_script" "subdomain_routes" {
+resource "cloudflare_workers_script" "subdomain_routes" {
   account_id = local.cf_account_id
   for_each   = local.subdomain_routes
   name       = "301-${each.key}"
@@ -30,11 +30,11 @@ resource "cloudflare_worker_script" "subdomain_routes" {
   })
 }
 
-resource "cloudflare_worker_route" "subdomain_routes" {
+resource "cloudflare_workers_route" "subdomain_routes" {
   for_each    = local.subdomain_routes
   zone_id     = cloudflare_zone.kaipov.id
   pattern     = "${each.key}.${cloudflare_zone.kaipov.zone}/*"
-  script_name = cloudflare_worker_script.subdomain_routes[each.key].name
+  script_name = cloudflare_workers_script.subdomain_routes[each.key].name
 }
 
 resource "cloudflare_record" "subdomain_routes" {
@@ -42,14 +42,14 @@ resource "cloudflare_record" "subdomain_routes" {
   zone_id  = cloudflare_zone.kaipov.id
   name     = each.key
   type     = "CNAME"
-  value    = cloudflare_zone.kaipov.zone
+  content  = cloudflare_zone.kaipov.zone
   proxied  = true
   ttl      = 1
 }
 
 ### path routes, e.g. kaipov.com/blah*
 
-resource "cloudflare_worker_script" "path_routes" {
+resource "cloudflare_workers_script" "path_routes" {
   account_id = local.cf_account_id
   for_each   = local.path_routes
   name       = "301-${each.key}-path"
@@ -59,9 +59,9 @@ resource "cloudflare_worker_script" "path_routes" {
   })
 }
 
-resource "cloudflare_worker_route" "path_routes" {
+resource "cloudflare_workers_route" "path_routes" {
   for_each    = local.path_routes
   zone_id     = cloudflare_zone.kaipov.id
   pattern     = "${cloudflare_zone.kaipov.zone}/${each.key}*"
-  script_name = cloudflare_worker_script.path_routes[each.key].name
+  script_name = cloudflare_workers_script.path_routes[each.key].name
 }

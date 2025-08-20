@@ -7,7 +7,7 @@ resource "cloudflare_record" "pages" {
   zone_id = cloudflare_zone.kaipov.id
   name    = "@"
   type    = "CNAME"
-  value   = cloudflare_pages_project.website.subdomain
+  content = cloudflare_pages_project.website.subdomain
   proxied = true
   ttl     = 1
 }
