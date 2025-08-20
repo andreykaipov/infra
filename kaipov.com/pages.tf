@@ -27,7 +27,7 @@ resource "cloudflare_pages_project" "website" {
     type = "github"
     config {
       owner                         = "andreykaipov"
-      repo_name                     = "self"
+      repo_name                     = "website"
       production_branch             = "main"
       pr_comments_enabled           = true
       deployments_enabled           = true
@@ -39,7 +39,6 @@ resource "cloudflare_pages_project" "website" {
   build_config {
     build_command   = "hugo"
     destination_dir = "public"
-    root_dir        = "website"
-    build_caching   = true
+    build_caching   = false
   }
 }
