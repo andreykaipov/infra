@@ -14,6 +14,9 @@ variable "games" {
 }
 
 locals {
+  # bindings are exposed as env vars to workers.
+  # an individual worker might not necessarily use all bindings,
+  # but we pass all of them out of convenience
   bindings = [
     {
       kind = "plain_text"

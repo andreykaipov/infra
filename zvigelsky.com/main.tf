@@ -28,11 +28,6 @@ resource "cloudflare_zone_settings_override" "settings" {
     privacy_pass   = "on"
 
     # Speed
-    minify {
-      css  = "on"
-      js   = "on"
-      html = "on"
-    }
     brotli = "on"
 
     # Caching

@@ -135,7 +135,7 @@ locals {
   content = var.with_itty ? "${file("${path.module}/lib.js")}\n${local.script}" : local.script
 }
 
-resource "cloudflare_worker_script" "script" {
+resource "cloudflare_workers_script" "script" {
   account_id = var.account_id
   name       = replace("${var.zone.zone}-${var.name}", "/[^a-zA-Z0-9-]/", "-")
   content    = local.content
@@ -199,26 +199,26 @@ resource "cloudflare_worker_script" "script" {
   }
 }
 
-resource "cloudflare_worker_cron_trigger" "trigger" {
+resource "cloudflare_workers_cron_trigger" "trigger" {
   count       = length(var.cron_schedules) > 0 ? 1 : 0
   account_id  = var.account_id
-  script_name = cloudflare_worker_script.script.name
+  script_name = cloudflare_workers_script.script.name
   schedules   = var.cron_schedules
 }
 
-resource "cloudflare_worker_route" "route" {
+resource "cloudflare_workers_route" "route" {
   for_each    = var.routes
   zone_id     = var.zone.id
   pattern     = each.value
-  script_name = cloudflare_worker_script.script.name
+  script_name = cloudflare_workers_script.script.name
 }
 
-resource "cloudflare_worker_domain" "custom_domain" {
+resource "cloudflare_workers_domain" "custom_domain" {
   for_each   = var.domains
   account_id = var.account_id
   zone_id    = var.zone.id
   hostname   = each.key
-  service    = cloudflare_worker_script.script.name
+  service    = cloudflare_workers_script.script.name
 }
 
 resource "cloudflare_workers_kv_namespace" "kv_namespace" {
