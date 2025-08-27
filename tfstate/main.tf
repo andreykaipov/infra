@@ -12,7 +12,7 @@ resource "cloudflare_workers_kv_namespace" "tfstate" {
   title      = "tfstate"
 }
 
-resource "cloudflare_worker_script" "tfstate" {
+resource "cloudflare_workers_script" "tfstate" {
   account_id = local.cf_account_id
   name       = "tfstate-handler"
   content    = file("index.js")
@@ -35,8 +35,8 @@ data "cloudflare_zone" "kaipov" {
   name = "kaipov.com"
 }
 
-resource "cloudflare_worker_route" "terraform_route" {
+resource "cloudflare_workers_route" "terraform_route" {
   zone_id     = data.cloudflare_zone.kaipov.zone_id
   pattern     = "tf.${data.cloudflare_zone.kaipov.name}/*"
-  script_name = cloudflare_worker_script.tfstate.name
+  script_name = cloudflare_workers_script.tfstate.name
 }
