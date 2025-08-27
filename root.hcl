@@ -76,19 +76,19 @@ terraform {
     %{~if contains(local.providers, "azure")~}
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 3.0, < 4.0"
+      version = "~> 4.0"
     }
     %{~endif~}
     %{~if contains(local.providers, "cloudflare")~}
     cloudflare = {
       source  = "cloudflare/cloudflare"
-      version = ">= 4.0, < 5.0"
+      version = "~> 5.0"
     }
     %{~endif~}
     %{~if contains(local.providers, "onepassword")~}
     onepassword = {
       source  = "1Password/onepassword"
-      version = ">= 1.0, < 2.0"
+      version = "~> 2.0"
     }
     %{~endif~}
   }
