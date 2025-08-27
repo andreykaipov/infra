@@ -2,11 +2,6 @@ locals {
   cf_account_id = local.secrets.setup["cloudflare_account_id"]
 }
 
-resource "random_string" "creds" {
-  count  = 2
-  length = 64
-}
-
 resource "cloudflare_workers_kv_namespace" "tfstate" {
   account_id = local.cf_account_id
   title      = "tfstate"
@@ -23,11 +18,11 @@ resource "cloudflare_workers_script" "tfstate" {
   }
   secret_text_binding {
     name = "username"
-    text = random_string.creds[0].result
+    text = local.secrets.setup["tf_backend_username"]
   }
   secret_text_binding {
     name = "password"
-    text = random_string.creds[1].result
+    text = local.secrets.setup["tf_backend_password"]
   }
 }
 

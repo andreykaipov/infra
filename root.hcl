@@ -2,13 +2,13 @@ retry_max_attempts       = 3
 retry_sleep_interval_sec = 10
 
 locals {
-  // /home/andrey/gh/self
+  // /home/blah/blah/blah/infra
   root = get_repo_root()
 
-  // self
+  // infra
   project_name = basename(local.root)
 
-  // self/infra/project
+  // infra/project_dir
   tfstate_path = "${local.project_name}/${get_path_from_repo_root()}"
 
   self_secrets_val = get_env("self_secrets")
@@ -29,7 +29,7 @@ inputs = {
 }
 
 terraform {
-  source = "${get_repo_root()}/_modules//"
+  source = "${local.root}/_modules//"
 }
 
 remote_state {
@@ -58,7 +58,7 @@ variable "self_secrets" {
 }
 
 locals {
-  secrets = jsondecode(var.self_secrets)
+  secrets = sensitive(jsondecode(var.self_secrets))
 }
 EOF
 }
