@@ -3,17 +3,13 @@ locals {
 }
 
 resource "cloudflare_zone" "kaipov" {
-  account_id = local.cf_account_id
-  zone       = "kaipov.com"
-  plan       = "free"
-  type       = "full"
-  paused     = false
-  jump_start = false
+  account = { id = local.cf_account_id }
+  name    = "kaipov.com"
+  type    = "full"
 }
 
-resource "cloudflare_zone_settings_override" "kaipov" {
-  zone_id = cloudflare_zone.kaipov.id
-  settings {
+resource "cloudflare_zone_setting" "kaipov" {
+  for_each = {
     # SSL/TLS
     ssl                      = "full"
     always_use_https         = "on"
@@ -37,7 +33,6 @@ resource "cloudflare_zone_settings_override" "kaipov" {
 
     # Network
     http3               = "on"
-    zero_rtt            = "on"
     websockets          = "on"
     opportunistic_onion = "on"
     ip_geolocation      = "on"
@@ -46,4 +41,8 @@ resource "cloudflare_zone_settings_override" "kaipov" {
     email_obfuscation   = "on"
     server_side_exclude = "on"
   }
+
+  zone_id    = cloudflare_zone.kaipov.id
+  setting_id = each.key
+  value      = each.value
 }
