@@ -12,5 +12,4 @@ devenv.local.nix
 **/terragrunt-debug.tfvars.json
 **/.terraform
 **/.terragrunt-cache
-**/.terraform.lock.hcl
 **/zz_generated.*.tf
