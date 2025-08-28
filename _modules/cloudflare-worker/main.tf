@@ -2,7 +2,7 @@ terraform {
   required_providers {
     cloudflare = {
       source  = "cloudflare/cloudflare"
-      version = ">= 4.0, < 5.0"
+      version = "~> 5.0"
     }
   }
 }
@@ -15,7 +15,7 @@ variable "account_id" {
 variable "zone" {
   type = object({
     id   = string
-    zone = string
+    name = string
   })
   description = <<EOF
 An object containing the zone ID and zone name for the Cloudflare zone to use.
@@ -65,15 +65,16 @@ variable "module" {
 
 variable "bindings" {
   type = list(object({
-    kind         = string
     name         = string
-    namespace_id = optional(string)
-    text         = optional(string)
-    module       = optional(string)
-    service      = optional(string)
-    environment  = optional(string)
+    type         = string
     bucket_name  = optional(string)
     dataset      = optional(string)
+    environment  = optional(string)
+    json         = optional(string)
+    namespace    = optional(string)
+    namespace_id = optional(string)
+    service      = optional(string)
+    text         = optional(string)
   }))
   default     = []
   description = "A list of bindings to bindg to the worker script."
@@ -136,89 +137,37 @@ locals {
 }
 
 resource "cloudflare_workers_script" "script" {
-  account_id = var.account_id
-  name       = replace("${var.zone.zone}-${var.name}", "/[^a-zA-Z0-9-]/", "-")
-  content    = local.content
-  module     = true
-
-  dynamic "kv_namespace_binding" {
-    for_each = [for b in var.bindings : b if b.kind == "kv_namespace"]
-    content {
-      name         = kv_namespace_binding.value.name
-      namespace_id = kv_namespace_binding.value.namespace_id
-    }
-  }
-
-  dynamic "plain_text_binding" {
-    for_each = [for b in var.bindings : b if b.kind == "plain_text"]
-    content {
-      name = plain_text_binding.value.name
-      text = plain_text_binding.value.text
-    }
-  }
-
-  dynamic "secret_text_binding" {
-    for_each = [for b in var.bindings : b if b.kind == "secret_text"]
-    content {
-      name = secret_text_binding.value.name
-      text = secret_text_binding.value.text
-    }
-  }
-
-  dynamic "webassembly_binding" {
-    for_each = [for b in var.bindings : b if b.kind == "webassembly"]
-    content {
-      name   = webassembly_binding.value.name
-      module = webassembly_binding.value.module
-    }
-  }
-
-  dynamic "service_binding" {
-    for_each = [for b in var.bindings : b if b.kind == "service"]
-    content {
-      name        = service_binding.value.name
-      service     = service_binding.value.service
-      environment = service_binding.value.environment
-    }
-  }
-
-  dynamic "r2_bucket_binding" {
-    for_each = [for b in var.bindings : b if b.kind == "r2_bucket"]
-    content {
-      name        = r2_bucket_binding.value.name
-      bucket_name = r2_bucket_binding.value.bucket_name
-    }
-  }
-
-  dynamic "analytics_engine_binding" {
-    for_each = [for b in var.bindings : b if b.kind == "analytics_engine"]
-    content {
-      name    = analytics_engine_binding.value.name
-      dataset = analytics_engine_binding.value.dataset
-    }
-  }
+  account_id  = var.account_id
+  script_name = replace("${var.zone.name}-${var.name}", "/[^a-zA-Z0-9-]/", "-")
+  content     = local.content
+  main_module = "worker.js"
+  bindings    = var.bindings
 }
 
 resource "cloudflare_workers_cron_trigger" "trigger" {
   count       = length(var.cron_schedules) > 0 ? 1 : 0
   account_id  = var.account_id
-  script_name = cloudflare_workers_script.script.name
-  schedules   = var.cron_schedules
+  script_name = cloudflare_workers_script.script.script_name
+  schedules = [
+    for schedule in var.cron_schedules :
+    { cron = schedule }
+  ]
 }
 
 resource "cloudflare_workers_route" "route" {
-  for_each    = var.routes
-  zone_id     = var.zone.id
-  pattern     = each.value
-  script_name = cloudflare_workers_script.script.name
+  for_each = var.routes
+  zone_id  = var.zone.id
+  pattern  = each.value
+  script   = cloudflare_workers_script.script.script_name
 }
 
-resource "cloudflare_workers_domain" "custom_domain" {
-  for_each   = var.domains
-  account_id = var.account_id
-  zone_id    = var.zone.id
-  hostname   = each.key
-  service    = cloudflare_workers_script.script.name
+resource "cloudflare_workers_custom_domain" "custom_domain" {
+  for_each    = var.domains
+  account_id  = var.account_id
+  zone_id     = var.zone.id
+  hostname    = each.key
+  service     = cloudflare_workers_script.script.script_name
+  environment = "production"
 }
 
 resource "cloudflare_workers_kv_namespace" "kv_namespace" {
@@ -231,6 +180,6 @@ resource "cloudflare_workers_kv" "kv_entry" {
   for_each     = toset(flatten([for kv, entry in var.kv : [for k, v in entry : [kv, k, v]]]))
   account_id   = var.account_id
   namespace_id = cloudflare_workers_kv_namespace.kv_namespace[each.value[0]].id
-  key          = each.value[1]
+  key_name     = each.value[1]
   value        = each.value[2]
 }
