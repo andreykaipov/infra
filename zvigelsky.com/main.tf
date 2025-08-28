@@ -3,17 +3,13 @@ locals {
 }
 
 resource "cloudflare_zone" "zone" {
-  account_id = local.cf_account_id
-  zone       = "zvigelsky.com"
-  plan       = "free"
-  type       = "full"
-  paused     = false
-  jump_start = false
+  account = { id = local.cf_account_id }
+  name    = "zvigelsky.com"
+  type    = "full"
 }
 
-resource "cloudflare_zone_settings_override" "settings" {
-  zone_id = cloudflare_zone.zone.id
-  settings {
+resource "cloudflare_zone_setting" "setting" {
+  for_each = {
     # SSL/TLS
     ssl                      = "full"
     always_use_https         = "on"
@@ -37,7 +33,6 @@ resource "cloudflare_zone_settings_override" "settings" {
 
     # Network
     http3               = "on"
-    zero_rtt            = "on"
     websockets          = "on"
     opportunistic_onion = "on"
     ip_geolocation      = "on"
@@ -46,4 +41,8 @@ resource "cloudflare_zone_settings_override" "settings" {
     email_obfuscation   = "on"
     server_side_exclude = "on"
   }
+
+  zone_id    = cloudflare_zone.zone.id
+  setting_id = each.key
+  value      = each.value
 }

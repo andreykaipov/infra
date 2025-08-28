@@ -14,25 +14,23 @@ variable "games" {
 }
 
 locals {
-  # bindings are exposed as env vars to workers.
-  # an individual worker might not necessarily use all bindings,
-  # but we pass all of them out of convenience
-  bindings = [
-    {
-      kind = "plain_text"
-      name = "links"
-      text = jsonencode(var.links)
-    },
-    {
-      kind = "plain_text"
-      name = "games"
-      text = jsonencode(var.games)
-    }
-  ]
-
   workers = {
-    root   = [cloudflare_zone.zone.zone],
-    gaming = ["whatgameisallanplayingtonight.${cloudflare_zone.zone.zone}"]
+    root = {
+      domains = [cloudflare_zone.zone.name]
+      bindings = [{
+        type = "plain_text"
+        name = "links"
+        text = jsonencode(var.links)
+      }]
+    }
+    gaming = {
+      domains = ["whatgameisallanplayingtonight.${cloudflare_zone.zone.name}"]
+      bindings = [{
+        type = "plain_text"
+        name = "games"
+        text = jsonencode(var.games)
+      }]
+    }
   }
 }
 
@@ -42,8 +40,8 @@ module "worker" {
   account_id = local.cf_account_id
   zone       = cloudflare_zone.zone
   name       = each.key
-  domains    = each.value
+  domains    = each.value.domains
   script     = file("js/${each.key}.js")
-  bindings   = local.bindings
+  bindings   = each.value.bindings
   with_itty  = true
 }
