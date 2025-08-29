@@ -55,7 +55,10 @@ infra() {
         dir=$1
         shift
         export TG_INPUTS_DEBUG=1
-        export TG_WORKING_DIR="$PWD/$dir"
+
+        # TG_WORKING_DIR seems buggy...
+        cd "$PWD/$dir"
+        echo "$PWD/$dir"
         secrets="$(get_secret_json github infra)" terragrunt "$@"
 }
 
