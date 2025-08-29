@@ -2,15 +2,15 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 3.0, < 4.0"
+      version = "~> 4.0"
     }
     cloudflare = {
       source  = "cloudflare/cloudflare"
-      version = ">= 4.0, < 5.0"
+      version = "~> 5.0"
     }
     onepassword = {
       source  = "1Password/onepassword"
-      version = ">= 1.0, < 2.0"
+      version = "~> 2.0"
     }
   }
 }
@@ -172,9 +172,9 @@ resource "azurerm_managed_disk" "data" {
     name = var.name
     kind = "mc-data"
   }
-  lifecycle {
-    prevent_destroy = true
-  }
+  # lifecycle {
+  #   prevent_destroy = true
+  # }
 }
 
 resource "azurerm_virtual_machine_data_disk_attachment" "attachment" {
