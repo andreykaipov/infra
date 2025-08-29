@@ -3,9 +3,11 @@ include "root" {
   expose = true
 }
 
-locals {
-  providers = ["cloudflare"]
+include "cloudflare" {
+  path = "${get_repo_root()}/providers/cloudflare.hcl"
+}
 
+locals {
   resume_tex = "${include.root.locals.root}/resume/resume.tex"
 
   resume = {
