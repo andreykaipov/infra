@@ -1,9 +1,9 @@
-variable "image_name" {
+variable "name" {
   description = "Name of the Docker image (e.g., 'andreykaipov/minecraft-player-monitor')"
   type        = string
 }
 
-variable "image_tag" {
+variable "tag" {
   description = "Tag for the Docker image"
   type        = string
   default     = "latest"

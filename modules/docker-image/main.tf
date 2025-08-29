@@ -5,7 +5,7 @@ locals {
 }
 
 resource "docker_image" "image" {
-  name = "${var.image_name}:${var.image_tag}"
+  name = "${var.name}:${var.tag}"
   build {
     context    = var.build_context
     dockerfile = var.dockerfile_path
