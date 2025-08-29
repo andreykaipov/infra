@@ -4,34 +4,35 @@ include "root" {
 }
 
 include "azure" {
-  path = find_in_parent_folders("root.provider.azure.hcl")
-}
-
-locals {
-  root    = include.root.locals
-  secrets = local.root.secrets
+  path = "${get_repo_root()}/providers/azure.hcl"
 }
 
 terraform {
-  source = "${local.root.root}/modules/azure-container-app-simple"
+  source = "${get_repo_root()}/modules/azure-container-app"
 }
 
-dependency "shared_env" {
-  config_path = "../../shared-aca-env"
+locals {
+  secrets = include.root.locals.secrets
 }
 
-dependencies {
-  paths = [
-    "../../shared-aca-env",
-    "../../../images/mc/player-monitor",
-    "../../../images/mc/backup-manager",
-  ]
+dependency "rg" {
+  config_path = "../../shared/azure-infra/rg"
+  mock_outputs = {
+    name = "mock-rg"
+  }
+}
+
+dependency "env" {
+  config_path = "../../shared/azure-infra/container-app-env"
+  mock_outputs = {
+    id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/mock-rg/providers/Microsoft.App/managedEnvironments/mock-env"
+  }
 }
 
 inputs = {
   name                         = "minecraft-java"
-  resource_group_name          = dependency.shared_env.outputs.resource_group_name
-  container_app_environment_id = dependency.shared_env.outputs.container_app_environment_id
+  resource_group_name          = dependency.rg.outputs.name
+  container_app_environment_id = dependency.env.outputs.id
   image                        = "itzg/minecraft-server"
   sha                          = ""
   cpu                          = 1.0
