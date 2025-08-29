@@ -2,30 +2,17 @@ retry_max_attempts       = 3
 retry_sleep_interval_sec = 10
 
 locals {
-  // /home/blah/blah/blah/infra
-  root = get_repo_root()
+  common = read_terragrunt_config(find_in_parent_folders("root.common.hcl")).locals
 
-  // infra
-  project_name = basename(local.root)
+  root       = local.common.root
+  tfstate_id = local.common.tfstate_id
+  secrets    = local.common.secrets
 
-  // infra/project_dir
-  tfstate_path = "${local.project_name}/${get_path_from_repo_root()}"
-
-  self_secrets_val = get_env("self_secrets")
-  self_secrets = try(
-    jsondecode(local.self_secrets_val),
-    run_cmd("sh", "-c", <<EOF
-      echo "There was an issue parsing self_secrets:"
-      echo '${local.self_secrets_val}'
-    EOF
-    )
-  )
-
-  providers = read_terragrunt_config("providers.hcl").locals.providers
+  providers = try(read_terragrunt_config("providers.hcl").locals.providers, [])
 }
 
 inputs = {
-  self_secrets = local.self_secrets
+  __secrets = local.secrets
 }
 
 terraform {
@@ -40,11 +27,11 @@ remote_state {
 
   backend = "http"
   config = {
-    username       = local.self_secrets.setup.tf_backend_username
-    password       = local.self_secrets.setup.tf_backend_password
-    address        = "https://tf.kaipov.com/${local.tfstate_path}"
-    lock_address   = "https://tf.kaipov.com/${local.tfstate_path}"
-    unlock_address = "https://tf.kaipov.com/${local.tfstate_path}"
+    username       = local.secrets.setup.tf_backend_username
+    password       = local.secrets.setup.tf_backend_password
+    address        = "https://tf.kaipov.com/${local.tfstate_id}"
+    lock_address   = "https://tf.kaipov.com/${local.tfstate_id}"
+    unlock_address = "https://tf.kaipov.com/${local.tfstate_id}"
   }
 }
 
@@ -53,12 +40,13 @@ generate "secrets" {
   path      = "zz_generated.secrets.tf"
   if_exists = "overwrite"
   contents  = <<EOF
-variable "self_secrets" {
-  type = string
+variable "__secrets" {
+  type      = string
+  sensitive = true
 }
 
 locals {
-  secrets = sensitive(jsondecode(var.self_secrets))
+  secrets = sensitive(jsondecode(var.__secrets))
 }
 EOF
 }
@@ -91,13 +79,18 @@ terraform {
       version = "~> 2.0"
     }
     %{~endif~}
+    %{~if contains(local.providers, "docker")~}
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0"
+    }
+    %{~endif~}
   }
 }
 
 %{~if contains(local.providers, "azure")}
 provider "azurerm" {
   features {}
-  skip_provider_registration = true
   client_id                  = local.secrets.setup.az_service_principal.appId
   client_secret              = local.secrets.setup.az_service_principal.password
   tenant_id                  = local.secrets.setup.az_service_principal.tenantId
@@ -117,6 +110,5 @@ provider "onepassword" {
   // it's how we got all the other secrets
 }
 %{~endif}
-
 EOF
 }

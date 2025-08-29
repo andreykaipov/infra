@@ -4,6 +4,8 @@ include "root" {
 }
 
 locals {
+  providers = ["cloudflare"]
+
   resume_tex = "${include.root.locals.root}/resume/resume.tex"
 
   resume = {
