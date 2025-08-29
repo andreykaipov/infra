@@ -3,5 +3,5 @@ include "root" {
 }
 
 include "docker" {
-  path = "../docker-image.hcl"
+  path = find_in_parent_folders("docker-image.hcl")
 }

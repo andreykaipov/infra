@@ -8,6 +8,13 @@ locals {
   tfstate_id = local.common.tfstate_id
   secrets    = local.common.secrets
 
+  # _ = run_cmd("bash", "-c", <<EOF
+  # echo '${local.root}'
+  # echo '${local.tfstate_id}'
+  # echo '${get_path_from_repo_root()}'
+  # EOF
+  # )
+
   providers = try(read_terragrunt_config("providers.hcl").locals.providers, [])
 }
 

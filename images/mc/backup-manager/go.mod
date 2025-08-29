@@ -1,4 +1,4 @@
-module github.com/andreykaipov/infra/mc/backup-manager
+module github.com/andreykaipov/infra/images/mc/backup-manager
 
 go 1.25
 

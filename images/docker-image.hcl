@@ -18,6 +18,7 @@ inputs = {
     # "org.opencontainers.image.created"     = timestamp()
   }
 
+  # by default the rebuild triggers are on **/* so we want to keep this narrowed down
   source_files_pattern = "**/*.go"
 
   registry_url = "ghcr.io"
