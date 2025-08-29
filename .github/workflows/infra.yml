@@ -34,4 +34,4 @@ jobs:
           terragrunt --version
           curl -v https://tf.kaipov.com/self/infra/tfstate
           ./scripts/run.sh infra/tfstate plan
-          ./scripts/run.sh infra/kaipov.com plan
+          ./scripts/run.sh infra/sites/kaipov.com plan
