@@ -2,157 +2,236 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net"
+	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/gorcon/rcon"
 )
 
-type Config struct {
-	MinecraftHost     string
-	MinecraftPort     int
-	ConnectionString  string
-	QueueName         string
-	CheckInterval     time.Duration
-	InactivityTimeout time.Duration
+const azureScope = "https://management.azure.com/.default"
+
+type Monitor struct {
+	rconAddr          string
+	rconPassword      string
+	checkInterval     time.Duration
+	inactivityTimeout time.Duration
+	stopMethod        string
+	lastPlayerTime    time.Time
+
+	// Azure Container App stopping
+	subscriptionID   string
+	resourceGroup    string
+	containerAppName string
+	azureCredential  *azidentity.DefaultAzureCredential
+	lastStopTime     time.Time
 }
 
-type ActivityMessage struct {
-	Timestamp   time.Time `json:"timestamp"`
-	PlayerCount int       `json:"player_count"`
-	Server      string    `json:"server"`
-}
+func main() {
+	log.SetPrefix("[player-monitor] ")
+	log.Println("Starting...")
+	log.Println("Waiting for server to start before monitoring...")
+	time.Sleep(1 * time.Minute)
 
-func getConfig() *Config {
-	port, _ := strconv.Atoi(getEnv("MINECRAFT_PORT", "25565"))
-	checkInterval, _ := strconv.Atoi(getEnv("CHECK_INTERVAL", "30"))
-	inactivityTimeout, _ := strconv.Atoi(getEnv("INACTIVITY_TIMEOUT", "600"))
-
-	return &Config{
-		MinecraftHost:     getEnv("MINECRAFT_HOST", "localhost"),
-		MinecraftPort:     port,
-		ConnectionString:  os.Getenv("AZURE_STORAGE_CONNECTION_STRING"),
-		QueueName:         getEnv("QUEUE_NAME", "player-activity"),
-		CheckInterval:     time.Duration(checkInterval) * time.Second,
-		InactivityTimeout: time.Duration(inactivityTimeout) * time.Second,
-	}
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
-// Simple TCP check to see if server is responsive
-func checkServerAlive(host string, port int) (bool, error) {
-	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
-
-	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
+	credential, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
-		return false, err
+		log.Printf("Failed to create Azure credential (continuing without scaling): %v", err)
+	}
+
+	m := &Monitor{
+		rconAddr:          fmt.Sprintf("%s:%s", env("MINECRAFT_HOST", "127.0.0.1"), env("RCON_PORT", "25575")),
+		rconPassword:      env("RCON_PASSWORD", ""),
+		checkInterval:     duration(env("CHECK_INTERVAL", "30s")),
+		inactivityTimeout: duration(env("INACTIVITY_TIMEOUT", "5m")),
+		stopMethod:        env("STOP_METHOD", "rcon"),
+		lastPlayerTime:    time.Now(),
+
+		subscriptionID:   env("AZURE_SUBSCRIPTION_ID", ""),
+		resourceGroup:    env("AZURE_RESOURCE_GROUP", ""),
+		containerAppName: env("AZURE_CONTAINER_APP_NAME", ""),
+		azureCredential:  credential,
+	}
+
+	if m.rconPassword == "" {
+		log.Fatal("RCON_PASSWORD required")
+	}
+
+	if m.checkInterval >= m.inactivityTimeout {
+		log.Fatal("CHECK_INTERVAL must be less than INACTIVITY_TIMEOUT")
+	}
+
+	log.Printf("Config: %s, check=%v, timeout=%v, method=%s", m.rconAddr, m.checkInterval, m.inactivityTimeout, m.stopMethod)
+	m.run()
+}
+
+func (m *Monitor) run() {
+	ticker := time.NewTicker(m.checkInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if err := m.check(); err != nil {
+			log.Printf("Check failed: %v", err)
+		}
+	}
+}
+
+var playerCountRegex = regexp.MustCompile(`There are (\d+) of`)
+
+func (m *Monitor) check() error {
+	conn, err := rcon.Dial(m.rconAddr, m.rconPassword)
+	if err != nil {
+		return err
 	}
 	defer conn.Close()
 
-	return true, nil
-}
-
-func sendActivitySignal(client *azqueue.QueueClient, server string) error {
-	message := ActivityMessage{
-		Timestamp:   time.Now().UTC(),
-		PlayerCount: 1, // We just care that server is alive
-		Server:      server,
-	}
-
-	messageBytes, err := json.Marshal(message)
+	resp, err := conn.Execute("list")
 	if err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// Parse player count using regex
+	playerCount := 0
+	if matches := playerCountRegex.FindStringSubmatch(resp); len(matches) > 1 {
+		playerCount, _ = strconv.Atoi(matches[1])
+	}
 
-	ttl := int32(600) // 10 minutes
-	_, err = client.EnqueueMessage(ctx, string(messageBytes), &azqueue.EnqueueMessageOptions{
-		TimeToLive: &ttl,
-	})
+	if playerCount > 0 {
+		m.lastPlayerTime = time.Now()
+		log.Printf("%d players online", playerCount)
+		return nil
+	}
 
-	return err
+	empty := time.Since(m.lastPlayerTime)
+	log.Printf("Empty for %v", empty)
+
+	if empty >= m.inactivityTimeout {
+		log.Printf("Stopping server after %v of inactivity", empty)
+		return m.stop()
+	}
+
+	return nil
 }
 
-func clearQueue(client *azqueue.QueueClient) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	_, err := client.ClearMessages(ctx, nil)
-	return err
+func (m *Monitor) stop() error {
+	switch m.stopMethod {
+	case "azure":
+		return m.stopContainerApp()
+	case "rcon":
+		return m.stopViaRcon()
+	case "noop":
+		log.Println("Stop method is noop, doing nothing")
+		return nil
+	default:
+		log.Printf("Unknown stop method: %s", m.stopMethod)
+		return m.stopViaRcon()
+	}
 }
 
-func main() {
-	config := getConfig()
-
-	log.Printf("Starting player monitor for %s:%d", config.MinecraftHost, config.MinecraftPort)
-	log.Printf("Check interval: %v, Inactivity timeout: %v", config.CheckInterval, config.InactivityTimeout)
-
-	// Wait for Minecraft to initialize
-	log.Println("Waiting 60 seconds for Minecraft server to initialize...")
-	time.Sleep(60 * time.Second)
-
-	// Initialize Azure Queue client
-	queueClient, err := azqueue.NewQueueClientFromConnectionString(
-		config.ConnectionString,
-		config.QueueName,
-		nil,
-	)
+func (m *Monitor) stopViaRcon() error {
+	conn, err := rcon.Dial(m.rconAddr, m.rconPassword)
 	if err != nil {
-		log.Fatalf("Failed to create queue client: %v", err)
+		return err
+	}
+	defer conn.Close()
+
+	// Warn and stop
+	if _, err := conn.Execute("say Server stopping in 30s due to inactivity"); err != nil {
+		log.Printf("Warning message failed: %v", err)
+	}
+	time.Sleep(30 * time.Second)
+
+	_, err = conn.Execute("stop")
+	if err != nil {
+		return err
 	}
 
-	// Create queue if it doesn't exist
+	log.Println("Stop command sent")
+	return nil
+}
+
+func (m *Monitor) stopContainerApp() error {
+	// Cooldown check
+	const cooldown = 2 * time.Minute
+	if time.Since(m.lastStopTime) < cooldown {
+		return nil
+	}
+
+	// Validate config
+	if m.azureCredential == nil {
+		return fmt.Errorf("Azure credentials not available")
+	}
+	if m.subscriptionID == "" {
+		return fmt.Errorf("AZURE_SUBSCRIPTION_ID not set")
+	}
+	if m.resourceGroup == "" {
+		return fmt.Errorf("AZURE_RESOURCE_GROUP not set")
+	}
+	if m.containerAppName == "" {
+		return fmt.Errorf("AZURE_CONTAINER_APP_NAME not set")
+	}
+
+	// Get token
 	ctx := context.Background()
-	_, _ = queueClient.Create(ctx, nil)
-
-	var lastServerUp bool
-	var inactiveChecks int
-	checksUntilShutdown := int(config.InactivityTimeout / config.CheckInterval)
-
-	for {
-		serverAddr := fmt.Sprintf("%s:%d", config.MinecraftHost, config.MinecraftPort)
-		serverUp, err := checkServerAlive(config.MinecraftHost, config.MinecraftPort)
-
-		if serverUp {
-			log.Printf("✅ Server is running and responsive")
-			if err := sendActivitySignal(queueClient, serverAddr); err != nil {
-				log.Printf("Failed to send activity signal: %v", err)
-			}
-			inactiveChecks = 0
-		} else {
-			log.Printf("❌ Server not responding: %v", err)
-			inactiveChecks++
-			remaining := checksUntilShutdown - inactiveChecks
-
-			if remaining > 0 {
-				log.Printf("Server unresponsive. Shutdown in %d checks (%v)",
-					remaining, time.Duration(remaining)*config.CheckInterval)
-			} else {
-				log.Println("Inactivity timeout reached. Container will scale down soon.")
-				_ = clearQueue(queueClient)
-			}
-		}
-
-		if !lastServerUp && serverUp {
-			log.Println("🎮 Server is now responsive!")
-		} else if lastServerUp && !serverUp {
-			log.Println("👋 Server has stopped responding")
-		}
-
-		lastServerUp = serverUp
-		time.Sleep(config.CheckInterval)
+	token, err := m.azureCredential.GetToken(ctx, policy.TokenRequestOptions{
+		Scopes: []string{azureScope},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get token: %v", err)
 	}
+
+	// Stop container app
+	url := fmt.Sprintf("https://management.azure.com/subscriptions/%s/resourceGroups/%s/providers/Microsoft.App/containerApps/%s/stop?api-version=2025-01-01",
+		m.subscriptionID, m.resourceGroup, m.containerAppName)
+
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(1<<(attempt-1)) * time.Second)
+		}
+
+		req, err := http.NewRequest("POST", url, nil)
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Authorization", "Bearer "+token.Token)
+
+		resp, err := (&http.Client{}).Do(req)
+		if err != nil {
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 || resp.StatusCode == 409 {
+			log.Println("✅ Container app stopped")
+			m.lastStopTime = time.Now()
+			return nil
+		}
+
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 && resp.StatusCode != 409 {
+			break
+		}
+	}
+
+	return fmt.Errorf("stop failed")
+}
+
+func env(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
+}
+
+func duration(s string) time.Duration {
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		log.Printf("Invalid duration %q, using 30s", s)
+		return 30 * time.Second
+	}
+	return d
 }
