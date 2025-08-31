@@ -58,7 +58,6 @@ infra() {
 
         # TG_WORKING_DIR seems buggy...
         cd "$PWD/$dir"
-        echo "$PWD/$dir"
         secrets="$(get_secret_json github infra)" terragrunt "$@"
 }
 
