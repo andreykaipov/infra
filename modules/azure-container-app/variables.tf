@@ -13,14 +13,6 @@ variable "resource_group_name" {
   description = "The name of the resource group"
 }
 
-variable "image" {
-  type = string
-}
-
-variable "sha" {
-  type = string
-}
-
 variable "max_replicas" {
   type        = number
   default     = 1
@@ -33,16 +25,16 @@ variable "min_replicas" {
   description = "Minimum number of replicas"
 }
 
-variable "cpu" {
-  type        = number
-  default     = 0.25
-  description = "CPU allocation for the container"
+variable "workload_profile_name" {
+  type        = string
+  default     = null
+  description = "The name of the workload profile to use. If not specified, uses Consumption profile."
 }
 
-variable "memory" {
-  type        = string
-  default     = "0.5Gi"
-  description = "Memory allocation for the container"
+variable "enable_system_identity" {
+  type        = bool
+  default     = false
+  description = "Enable system-assigned managed identity for the container app"
 }
 
 variable "persistent_volumes" {
@@ -77,15 +69,15 @@ variable "files" {
   description = "Files will be mounted to /shared"
 }
 
-variable "env" {
-  type        = map(string)
-  default     = {}
-  description = <<EOF
-The environment variables for the container. Secrets can be set by prefacing the
-value with `secret://`, followed by the contents of the secret env var.
-
-This is done so these values are properly passed as secrets to the container.
-Functionally it makes no difference. The only purpose is for Terraform to
-recognize them as sensitive values and to store them as secrets in Azure.
-EOF
+variable "containers" {
+  type = list(object({
+    name   = string
+    image  = string
+    sha    = optional(string, "")
+    cpu    = optional(number, 0.25)
+    memory = optional(string, "0.5Gi")
+    env    = optional(map(string), {})
+  }))
+  description = "List of containers to run in the pod"
+  sensitive   = true
 }
