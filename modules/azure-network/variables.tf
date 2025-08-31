@@ -42,3 +42,13 @@ variable "additional_ports" {
   }))
   default = {}
 }
+
+variable "subnet_delegation" {
+  description = "Subnet delegation configuration (only one delegation allowed per subnet)"
+  type = object({
+    name    = string
+    service = string
+    actions = list(string)
+  })
+  default = null
+}
