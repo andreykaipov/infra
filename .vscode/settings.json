@@ -1,0 +1,10 @@
+{
+    "editor.formatOnSave": true,
+    "files.exclude": {
+        // comment these out if you need to view them but for the
+        // most part they're annoying to look at in the file viewer
+        "**/.terragrunt-cache/": true,
+        "**/.terraform.lock.hcl": true,
+        "**/terragrunt-debug.tfvars.json": true
+    }
+}
