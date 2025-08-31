@@ -7,8 +7,8 @@ terraform {
 }
 
 inputs = {
-  image_name    = "ghcr.io/${local.root.repo}/${local.root.relative_path}"
-  image_tag     = "latest"
+  name          = "ghcr.io/${local.root.repo}/${local.root.relative_path}"
+  tag           = "latest"
   build_context = get_terragrunt_dir()
 
   labels = {
