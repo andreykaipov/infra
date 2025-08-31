@@ -29,7 +29,15 @@ inputs = {
   location              = "eastus"
   resource_group_name   = dependency.rg.outputs.name
   address_space         = ["10.0.0.0/16"]
-  subnet_address_prefix = "10.0.0.0/22" # /22 for shared container apps (1024 IPs)
+  subnet_address_prefix = "10.0.0.0/22" # /22 for container instances (1024 IPs)
+
+  subnet_delegation = {
+    name    = "Microsoft.App.environments"
+    service = "Microsoft.App/environments"
+    actions = [
+      "Microsoft.Network/virtualNetworks/subnets/action"
+    ]
+  }
 
   additional_ports = {
     minecraft      = { port = 25565 }
