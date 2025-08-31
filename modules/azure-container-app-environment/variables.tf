@@ -18,3 +18,15 @@ variable "subnet_id" {
   default     = null
   description = "ID of the subnet to use for the Container App Environment (optional)"
 }
+
+variable "storage_shares" {
+  type = list(object({
+    name         = string
+    account_name = string
+    account_key  = string
+    share_name   = string
+    access_mode  = optional(string, "ReadWrite")
+  }))
+  default     = []
+  description = "List of Azure File storage shares to mount"
+}
