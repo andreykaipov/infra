@@ -443,7 +443,7 @@ func proxyToBackend(clientConn net.Conn, backendAddr string, firstPacket []byte,
 		} else {
 			// backend closed/reset immediately — send friendly disconnect
 			log.Printf("Backend connection closed immediately after connect/write: %v", err)
-			message := getEnv("DISCONNECT_MESSAGE", "§eThe server will start soon! Get some water and tell your friends!")
+			message := getEnv("DISCONNECT_MESSAGE_2", "§eGet some water and try reconnecting in a minute while the server starts up!")
 			sendDisconnectJSON(clientConn, message)
 			startAzureContainerApp()
 			return
