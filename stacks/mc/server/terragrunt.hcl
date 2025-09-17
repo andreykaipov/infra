@@ -62,25 +62,80 @@ inputs = {
       cpu    = 2.0
       memory = "4Gi"
       env = {
-        EULA          = "TRUE"
-        TYPE          = "PAPER"
-        VERSION       = "1.21.8"
-        MEMORY        = "3G"
-        ENABLE_RCON   = "true"
-        RCON_PORT     = "25575"
-        RCON_HOST     = "0.0.0.0"
-        SERVER_PORT   = "25566"
-        DIFFICULTY    = "normal"
-        MODE          = "survival"
-        MOTD          = "Minecraft Java Server"
-        MAX_PLAYERS   = "20"
-        ONLINE_MODE   = "true"
-        PVP           = "true"
-        LEVEL_NAME    = "world"
-        SEED          = ""
-        UID           = "0"
-        GID           = "0"
-        RCON_PASSWORD = local.secrets.minecraft.rcon_password
+        EULA              = "TRUE"
+        TYPE              = "FABRIC"
+        VERSION           = "1.21.8"
+        MODRINTH_PROJECTS = <<EOF
+fabric-api
+lithium
+ferrite-core
+
+chunky
+vanilla-refresh
+inventory-sorting
+fallingtree
+
+terralith
+towns-and-towers
+refined-advancements
+scorched
+spellbound-weapons
+true-ending
+
+cristel-lib
+lithostitched
+cloth-config
+collective
+
+villager-names-serilum
+piglin-names
+realistic-bees
+pumpkillagers-quest
+mineral-chance
+double-doors
+bareback-horse-riding
+no-hostiles-around-campfire
+healing-campfire
+milk-all-the-mobs
+paper-books
+villager-death-messages
+infinite-trading
+grass-seeds
+crying-portals
+starter-kit
+inventory-totem
+quick-right-click
+EOF
+        # terralith
+        # chunky
+
+        OPS         = <<EOF
+IntimateMuffin
+EOF
+        MEMORY      = "7G"
+        ENABLE_RCON = "true"
+        RCON_PORT   = "25575"
+        RCON_HOST   = "0.0.0.0"
+
+        #         # Auto-download mods by listing URLs in MODS (comma or newline separated)
+        #         # replace the example URLs with actual versions you want
+        #         MODS = <<EOF
+        # http:s//github.com/CaffeineMC/lithium-fabric/releases/download/vX.X/lithium-fabric-X.X.jar
+        # https://github.com/jellysquid3/phosphor-fabric/releases/download/vY.Y/phosphor-fabric-Y.Y.jar
+        # EOF
+        REMOVE_OLD_MODS = "TRUE"
+        SERVER_PORT     = "25566"
+        DIFFICULTY      = "hard"
+        MODE            = "survival"
+        MOTD            = "Minecraft Java Server"
+        MAX_PLAYERS     = "20"
+        ONLINE_MODE     = "true"
+        PVP             = "true"
+        LEVEL_NAME      = "world"
+        SEED            = ""
+        UID             = "0"
+        GID             = "0"
+        RCON_PASSWORD   = local.secrets.minecraft.rcon_password
       }
     },
     {
