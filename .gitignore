@@ -13,3 +13,4 @@ devenv.local.nix
 **/.terraform
 **/.terragrunt-cache
 **/zz_generated.*.tf
+.wrangler
