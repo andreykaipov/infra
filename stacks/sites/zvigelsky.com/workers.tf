@@ -31,17 +31,26 @@ locals {
         text = jsonencode(var.games)
       }]
     }
+    burnout-baby = {
+      cron_schedules = ["*/2 * * * *"]
+      bindings = [{
+        type = "secret_text"
+        name = "PAGERDUTY_TOKEN"
+        text = local.secrets.pagerduty.api_token
+      }]
+    }
   }
 }
 
 module "worker" {
-  for_each   = local.workers
-  source     = "./cloudflare-worker"
-  account_id = local.cf_account_id
-  zone       = cloudflare_zone.zone
-  name       = each.key
-  domains    = each.value.domains
-  script     = file("js/${each.key}.js")
-  bindings   = each.value.bindings
-  with_itty  = true
+  for_each       = local.workers
+  source         = "./cloudflare-worker"
+  account_id     = local.cf_account_id
+  zone           = cloudflare_zone.zone
+  name           = each.key
+  domains        = try(each.value.domains, [])
+  script         = file("js/${each.key}.js")
+  bindings       = each.value.bindings
+  cron_schedules = try(each.value.cron_schedules, [])
+  with_itty      = true
 }
