@@ -1,5 +1,10 @@
-retry_max_attempts       = 3
-retry_sleep_interval_sec = 10
+errors {
+  retry "default" {
+    retryable_errors   = get_default_retryable_errors()
+    max_attempts       = 3
+    sleep_interval_sec = 10
+  }
+}
 
 locals {
   user    = "andreykaipov"                   # hey it's me
