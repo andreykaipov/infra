@@ -41,7 +41,11 @@ main() {
         repo=$(basename "$root")
         log "Setting up $repo"
 
-        : "${OP_SERVICE_ACCOUNT_TOKEN?needs to be set for op CLI}"
+	if ! op whoami >/dev/null; then
+		log "1Password is not setup"
+		log "Either perform 'op signin', or set OP_SERVICE_ACCOUNT_TOKEN"
+		exit 1
+	fi
 
         cmd=$1
         case "$cmd" in
