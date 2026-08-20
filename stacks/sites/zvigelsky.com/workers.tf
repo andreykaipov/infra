@@ -31,14 +31,14 @@ locals {
         text = jsonencode(var.games)
       }]
     }
-    burnout-baby = {
-      cron_schedules = ["*/2 * * * *"]
-      bindings = [{
-        type = "secret_text"
-        name = "PAGERDUTY_TOKEN"
-        text = local.secrets.pagerduty.api_token
-      }]
-    }
+    # burnout-baby = {
+    #   cron_schedules = ["*/2 * * * *"]
+    #   bindings = [{
+    #     type = "secret_text"
+    #     name = "PAGERDUTY_TOKEN"
+    #     text = local.secrets.pagerduty.api_token
+    #   }]
+    # }
   }
 }
 
