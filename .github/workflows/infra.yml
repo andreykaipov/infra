@@ -6,8 +6,12 @@ on:
   push:
     branches: [main]
     paths:
-      - "infra/**"
-      - "resume/**"
+      - "stacks/**"
+      - "modules/**"
+      - "providers/**"
+      - "root.hcl"
+      - "scripts/**"
+      - ".github/workflows/infra.yml"
 
 env:
   OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
@@ -25,7 +29,7 @@ jobs:
           nix develop --command bash -c "
             op --version
             terragrunt --version
-            curl -v https://tf.kaipov.com/self/infra/tfstate
-            ./scripts/run.sh infra/tfstate plan
-            ./scripts/run.sh infra/sites/kaipov.com plan
+            curl -v https://tf.kaipov.com/infra/stacks/tfstate
+            ./scripts/run.sh stacks/tfstate plan
+            ./scripts/run.sh stacks/sites/kaipov.com plan
           "
