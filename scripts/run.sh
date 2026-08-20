@@ -58,7 +58,7 @@ main() {
 infra() {
         dir=$1
         shift
-        export TG_INPUTS_DEBUG=1
+        # export TG_INPUTS_DEBUG=1
 
         # TG_WORKING_DIR seems buggy...
         cd "$PWD/$dir"
